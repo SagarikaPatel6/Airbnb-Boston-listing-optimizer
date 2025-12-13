@@ -1,1 +1,129 @@
+"""
+Data Layer: Fetch job postings and compute interview-related metrics
+"""
+
+import os
+import requests
+import pandas as pd
+import numpy as np
+from typing import List, Tuple
+from datetime import datetime
+
+
+ADZUNA_APP_ID = os.getenv("ADZUNA_APP_ID")
+ADZUNA_APP_KEY = os.getenv("ADZUNA_APP_KEY")
+
+BASE_URL = "https://api.adzuna.com/v1/api/jobs/us/search/1"
+
+
+def fetch_job_data(
+    query: str,
+    location: str,
+    results: int = 50
+) -> pd.DataFrame:
+    """
+    Fetch live job postings using Adzuna API
+
+    Args:
+        query: Job title or keyword (e.g. 'data analyst')
+        location: Location string (e.g. 'United States')
+        results: Number of job postings to fetch
+
+    Returns:
+        DataFrame containing raw job attributes
+    """
+    if not ADZUNA_APP_ID or not ADZUNA_APP_KEY:
+        raise ValueError("Missing Adzuna API credentials")
+
+    params = {
+        "app_id": ADZUNA_APP_ID,
+        "app_key": ADZUNA_APP_KEY,
+        "results_per_page": results,
+        "what": query,
+        "where": location,
+        "content-type": "application/json",
+    }
+
+    r = requests.get(BASE_URL, params=params)
+    r.raise_for_status()
+    jobs = r.json()["results"]
+
+    rows = []
+    for i, job in enumerate(jobs, start=1):
+        salary_min = job.get("salary_min")
+        salary_max = job.get("salary_max")
+
+        salary_k = None
+        if salary_min and salary_max:
+            salary_k = (salary_min + salary_max) / 2000
+
+        created = job.get("created")
+        days_since_post = 7
+        if created:
+            dt = datetime.fromisoformat(created.replace("Z", ""))
+            days_since_post = max(1, (datetime.now() - dt).days)
+
+        rows.append({
+            "job_id": i,
+            "company": job.get("company", {}).get("display_name", "Unknown"),
+            "role": job.get("title"),
+            "location": job.get("location", {}).get("display_name"),
+            "salary_k": salary_k if salary_k else 85,
+            "days_since_post": days_since_post,
+        })
+
+    return pd.DataFrame(rows)
+
+
+def compute_base_interview_probability(jobs: pd.DataFrame) -> np.ndarray:
+    """
+    Compute baseline interview probability for each job (heuristic)
+
+    Args:
+        jobs: DataFrame of job postings
+
+    Returns:
+        Array of baseline interview probabilities
+    """
+    prob = (
+        0.05
+        + 0.10 * (jobs["salary_k"] < 100)
+        + 0.05 * (jobs["days_since_post"] <= 7)
+    )
+
+    return np.clip(prob.values, 0.02, 0.30)
+
+
+def compute_expected_interview_value(
+    base_prob: np.ndarray,
+    salary_k: np.ndarray
+) -> np.ndarray:
+    """
+    Compute expected interview value proxy
+
+    Args:
+        base_prob: Interview probability estimates
+        salary_k: Salary in thousands
+
+    Returns:
+        Expected value array
+    """
+    return base_prob * salary_k
+
+
+def compute_efficiency_metric(
+    expected_value: np.ndarray,
+    time_cost: float = 1.0
+) -> np.ndarray:
+    """
+    Compute interview efficiency (value per hour)
+
+    Args:
+        expected_value: Expected interview value
+        time_cost: Average time cost per application
+
+    Returns:
+        Efficiency metric
+    """
+    return expected_value / time_cost
 
