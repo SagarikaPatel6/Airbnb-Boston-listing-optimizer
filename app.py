@@ -1,10 +1,12 @@
 """
 Streamlit App: Airbnb Listing Strategy Optimizer (Boston)
 
-This app serves as the orchestration layer.
-It loads Airbnb listing data, runs a prescriptive optimization model,
-and recommends which listings to prioritize to maximize revenue
-under operational capacity constraints.
+Demo-optimized version:
+- Limits optimization universe for fast execution
+- Caches heavy computations
+- Disables expensive frontier by default
+
+Purpose: Demonstrate prescriptive analytics clearly and reliably.
 """
 
 import streamlit as st
@@ -22,8 +24,7 @@ from data import (
 
 from optimizer_scipy import (
     optimize_portfolio,
-    generate_efficient_frontier,
-    find_minimum_variance_portfolio
+    generate_efficient_frontier
 )
 
 # --------------------------------------------------
@@ -41,11 +42,12 @@ st.set_page_config(
 st.title("🏡 Airbnb Listing Strategy Optimizer")
 st.markdown(
     """
-    **Prescriptive Analytics in Action**
+    **Prescriptive Analytics Demo**
 
-    This application helps Airbnb hosts and small property managers in **Boston**
-    decide **which listings to prioritize** in order to maximize expected annual revenue
-    while managing demand uncertainty under limited operational capacity.
+    This application demonstrates how portfolio optimization techniques
+    can be applied to **Airbnb listing strategy in Boston** — helping hosts
+    prioritize listings to maximize expected revenue while managing demand risk
+    under limited operational capacity.
     """
 )
 
@@ -60,7 +62,7 @@ max_listings = st.sidebar.slider(
     max_value=20,
     value=5,
     step=1,
-    help="Operational capacity: how many listings can be actively managed"
+    help="Operational capacity constraint"
 )
 
 risk_tolerance = st.sidebar.slider(
@@ -69,13 +71,21 @@ risk_tolerance = st.sidebar.slider(
     max_value=1.0,
     value=0.5,
     step=0.05,
-    help="Higher values allow more demand uncertainty for higher revenue"
+    help="Higher values allow higher demand uncertainty"
 )
 
-optimize_button = st.sidebar.button("🚀 Optimize Listing Strategy", type="primary")
+show_frontier = st.sidebar.checkbox(
+    "Show Revenue–Risk Frontier (slow)",
+    value=False
+)
+
+optimize_button = st.sidebar.button(
+    "🚀 Optimize Listing Strategy",
+    type="primary"
+)
 
 # --------------------------------------------------
-# LOAD DATA
+# LOAD DATA (CACHED)
 # --------------------------------------------------
 @st.cache_data
 def load_data():
@@ -84,13 +94,38 @@ def load_data():
 df = load_data()
 
 # --------------------------------------------------
-# SHOW RAW DATA PREVIEW
+# DEMO MODE: LIMIT OPTIMIZATION SIZE
+# --------------------------------------------------
+MAX_LISTINGS_OPT = 100  # critical for speed
+
+df["expected_revenue"] = df["price"] * (365 - df["availability_365"])
+
+df_opt = (
+    df.sort_values("expected_revenue", ascending=False)
+      .head(MAX_LISTINGS_OPT)
+      .reset_index(drop=True)
+)
+
+# --------------------------------------------------
+# DATA PREVIEW
 # --------------------------------------------------
 st.subheader("📄 Boston Airbnb Listings (Sample)")
 st.dataframe(
-    df[['neighbourhood', 'room_type', 'price', 'availability_365']].head(20),
+    df_opt[
+        ["neighbourhood", "room_type", "price", "availability_365"]
+    ].head(20),
     use_container_width=True
 )
+
+# --------------------------------------------------
+# CACHE HEAVY METRICS
+# --------------------------------------------------
+@st.cache_data
+def compute_metrics(df):
+    expected_returns = compute_expected_revenue(df)
+    risk = compute_revenue_risk(df)
+    cov_matrix = compute_covariance_matrix(expected_returns, risk)
+    return expected_returns, risk, cov_matrix
 
 # --------------------------------------------------
 # RUN OPTIMIZATION
@@ -99,21 +134,17 @@ if optimize_button:
 
     with st.spinner("Running optimization model..."):
 
-        # Expected revenue (acts like expected returns)
-        expected_returns = compute_expected_revenue(df)
+        expected_returns, risk, cov_matrix = compute_metrics(df_opt)
 
-        # Risk proxy
-        risk = compute_revenue_risk(df)
-
-        # Covariance matrix
-        cov_matrix = compute_covariance_matrix(expected_returns, risk)
-
-        # Capacity constraint → limits number of active listings
+        # Capacity constraint translated into allocation bounds
         min_weight = 0.0
         max_weight = 1.0 / max_listings
 
-        # Target return = risk-adjusted revenue expectation
-        target_return = np.percentile(expected_returns, int(risk_tolerance * 100))
+        # Risk-adjusted revenue target (percentile-based)
+        target_return = np.percentile(
+            expected_returns,
+            int(risk_tolerance * 100)
+        )
 
         weights, result = optimize_portfolio(
             expected_returns,
@@ -128,7 +159,7 @@ if optimize_button:
         st.stop()
 
     # --------------------------------------------------
-    # PORTFOLIO STATS
+    # PORTFOLIO STATISTICS
     # --------------------------------------------------
     portfolio_stats = get_portfolio_statistics(
         weights,
@@ -139,19 +170,32 @@ if optimize_button:
     st.subheader("📊 Optimization Summary")
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("Expected Annual Revenue", f"${portfolio_stats['return']:,.0f}")
-    col2.metric("Revenue Risk", f"{portfolio_stats['risk']:,.0f}")
-    col3.metric("Active Listings", max_listings)
+    col1.metric(
+        "Expected Annual Revenue",
+        f"${portfolio_stats['return']:,.0f}"
+    )
+    col2.metric(
+        "Revenue Risk",
+        f"{portfolio_stats['risk']:,.0f}"
+    )
+    col3.metric(
+        "Active Listings",
+        max_listings
+    )
 
     # --------------------------------------------------
     # RECOMMENDED LISTINGS
     # --------------------------------------------------
     st.subheader("✅ Recommended Listings to Prioritize")
 
-    results_df = df.copy()
+    results_df = df_opt.copy()
     results_df["Allocation Weight"] = weights
-    results_df = results_df[results_df["Allocation Weight"] > 0.001]
-    results_df = results_df.sort_values("Allocation Weight", ascending=False)
+    results_df = results_df[
+        results_df["Allocation Weight"] > 0.001
+    ].sort_values(
+        "Allocation Weight",
+        ascending=False
+    )
 
     st.dataframe(
         results_df[
@@ -174,39 +218,42 @@ if optimize_button:
     risk_contrib = compute_risk_contribution(weights, cov_matrix)
 
     risk_df = results_df.copy()
-    risk_df["Risk Contribution"] = risk_contrib[results_df.index]
+    risk_df["Risk Contribution"] = risk_contrib[
+        results_df.index
+    ]
 
     st.dataframe(
         risk_df[
-            [
-                "neighbourhood",
-                "room_type",
-                "Risk Contribution"
-            ]
-        ].sort_values("Risk Contribution", ascending=False),
+            ["neighbourhood", "room_type", "Risk Contribution"]
+        ].sort_values(
+            "Risk Contribution",
+            ascending=False
+        ),
         use_container_width=True
     )
 
     # --------------------------------------------------
-    # EFFICIENT FRONTIER
+    # OPTIONAL: EFFICIENT FRONTIER
     # --------------------------------------------------
-    st.subheader("📈 Revenue–Risk Efficient Frontier")
+    if show_frontier:
 
-    frontier = generate_efficient_frontier(
-        expected_returns,
-        cov_matrix,
-        n_points=30,
-        min_weight=min_weight,
-        max_weight=max_weight
-    )
+        st.subheader("📈 Revenue–Risk Efficient Frontier")
 
-    if frontier:
-        frontier_df = pd.DataFrame(frontier)
-
-        st.line_chart(
-            frontier_df.set_index("risk")["return"],
-            height=400
+        frontier = generate_efficient_frontier(
+            expected_returns,
+            cov_matrix,
+            n_points=20,
+            min_weight=min_weight,
+            max_weight=max_weight
         )
+
+        if frontier:
+            frontier_df = pd.DataFrame(frontier)
+
+            st.line_chart(
+                frontier_df.set_index("risk")["return"],
+                height=400
+            )
 
 # --------------------------------------------------
 # FOOTER
@@ -214,5 +261,5 @@ if optimize_button:
 st.markdown("---")
 st.caption(
     "Built for ISOM 839 – Prescriptive Analytics | "
-    "Boston Airbnb Dataset | SciPy Optimization"
+    "Boston Airbnb Dataset | SciPy Optimization | Demo Mode"
 )
