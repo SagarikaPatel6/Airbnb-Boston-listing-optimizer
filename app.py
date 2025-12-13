@@ -132,7 +132,7 @@ def compute_metrics(df):
 # --------------------------------------------------
 if optimize_button:
 
-        st.markdown("## 🚀 Optimization Results")
+    st.markdown("## 🚀 Optimization Results")
     st.success("Optimization complete. Recommended listings are shown below.")
 
     with st.spinner("Running optimization model..."):
@@ -187,40 +187,41 @@ if optimize_button:
     )
 
     # --------------------------------------------------
-    # RECOMMENDED LISTINGS
+    # OPTIMIZED LISTINGS
     # --------------------------------------------------
-   st.subheader("✅ Optimized Listing Recommendations")
-st.caption("Only listings with non-zero allocation selected by the optimizer are shown below.")
+    st.subheader("✅ Optimized Listing Recommendations")
+    st.caption("Only listings with non-zero allocation selected by the optimizer are shown below.")
 
-results_df = df_opt.copy()
+    results_df = df_opt.copy()
 
-# Convert weights to percentages for clarity
-results_df["Allocation %"] = (weights * 100).round(2)
+    # Convert weights to percentages for clarity
+    results_df["Allocation %"] = (weights * 100).round(2)
 
-# Keep only selected listings
-results_df = (
-    results_df[results_df["Allocation %"] > 0.01]
-    .sort_values("Allocation %", ascending=False)
-)
+    # Keep only selected listings
+    results_df = (
+        results_df[results_df["Allocation %"] > 0.01]
+        .sort_values("Allocation %", ascending=False)
+    )
 
-st.info(
-    f"Out of {len(df_opt)} candidate listings, "
-    f"{len(results_df)} were selected by the optimization model "
-    f"under the current capacity constraint."
-)
+    st.info(
+        f"Out of {len(df_opt)} candidate listings, "
+        f"{len(results_df)} were selected by the optimization model "
+        f"under the current capacity constraint."
+    )
 
-st.dataframe(
-    results_df[
-        [
-            "neighbourhood",
-            "room_type",
-            "price",
-            "availability_365",
-            "Allocation %"
-        ]
-    ],
-    use_container_width=True
-)
+    st.dataframe(
+        results_df[
+            [
+                "neighbourhood",
+                "room_type",
+                "price",
+                "availability_365",
+                "Allocation %"
+            ]
+        ],
+        use_container_width=True
+    )
+
     # --------------------------------------------------
     # RISK CONTRIBUTION
     # --------------------------------------------------
@@ -229,9 +230,7 @@ st.dataframe(
     risk_contrib = compute_risk_contribution(weights, cov_matrix)
 
     risk_df = results_df.copy()
-    risk_df["Risk Contribution"] = risk_contrib[
-        results_df.index
-    ]
+    risk_df["Risk Contribution"] = risk_contrib[results_df.index]
 
     st.dataframe(
         risk_df[
@@ -265,7 +264,6 @@ st.dataframe(
                 frontier_df.set_index("risk")["return"],
                 height=400
             )
-
 # --------------------------------------------------
 # FOOTER
 # --------------------------------------------------
