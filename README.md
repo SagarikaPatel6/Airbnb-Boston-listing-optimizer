@@ -1,14 +1,14 @@
 # 🏡 Airbnb Listing Strategy Optimizer (Boston)
 
-A prescriptive analytics application that applies portfolio optimization techniques to help Airbnb hosts and property managers in **Boston** decide which listings to prioritize in order to maximize expected revenue while managing demand risk under operational constraints.
+A **prescriptive analytics application** that applies portfolio optimization techniques to help Airbnb hosts in Boston prioritize listings that **maximize expected revenue** while managing **demand risk and operational capacity constraints**.
 
 ---
 
 ## 🎯 The Problem
 
-Airbnb hosts and small property managers operate under **limited capacity** — constrained by time, cleaning logistics, and management bandwidth. In competitive cities like Boston, not all listings perform equally, and demand varies significantly across neighborhoods, room types, and pricing levels.
+Airbnb hosts and small property managers operate under **limited capacity** — constrained by time, cleaning logistics, and management bandwidth. In competitive urban markets like Boston, listings vary widely in demand patterns, revenue potential, and uncertainty across neighborhoods, room types, and pricing levels.
 
-Most hosts rely on intuition when deciding:
+In practice, hosts rely heavily on intuition when deciding:
 - which listings to actively prioritize,
 - how many listings to manage at once,
 - and where to focus pricing and operational effort.
@@ -31,7 +31,7 @@ Each Airbnb listing is treated as a decision unit with:
 Using a constrained optimization framework, the model determines:
 - which listings should be prioritized,
 - how much relative focus to allocate to each listing,
-- and how to balance revenue potential against demand risk,
+- and how to balance revenue potential against demand uncertainty,
 
 in order to **maximize expected revenue** while respecting real-world operational limits such as the maximum number of active listings a host can manage.
 
@@ -39,7 +39,9 @@ in order to **maximize expected revenue** while respecting real-world operationa
 
 ## 🚀 Live Demo
 
-**[Try the app here →](YOUR_STREAMLIT_URL)**  
+👉 **Try the app here:**  
+[PASTE_YOUR_STREAMLIT_URL_HERE](https://airbnb-boston-listing-optimizer-kprejpxwjbnanrn3qzj3az.streamlit.app/)
+
 *(Deployed on Streamlit Cloud)*
 
 ---
@@ -78,12 +80,12 @@ in order to **maximize expected revenue** while respecting real-world operationa
   - Maximize expected annual revenue while minimizing demand risk
 
 - **Constraints**
-  - Fully allocated management capacity
-  - Maximum number of active listings
-  - Non-negative allocation weights
+  - Fully allocated management capacity  
+  - Maximum number of active listings  
+  - Non-negative allocation weights  
 
 - **Optimization Technique**
-  - Quadratic optimization using `scipy.optimize`
+  - Quadratic optimization using `scipy.optimize` (SLSQP solver)
 
 ---
 
@@ -93,7 +95,7 @@ The application produces:
 - a table of **recommended listings** ranked by allocation weight,
 - expected annual revenue and revenue risk metrics,
 - risk contribution analysis by listing,
-- a **Revenue–Risk Efficient Frontier** illustrating optimal trade-offs.
+- an optional **Revenue–Risk Efficient Frontier** illustrating optimal trade-offs.
 
 This allows hosts and managers to understand not just *which* listings to prioritize, but *why* those trade-offs are optimal given their constraints.
 
