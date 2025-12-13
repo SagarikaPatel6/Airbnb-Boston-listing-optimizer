@@ -1,144 +1,189 @@
 """
-Optimization Engine: OPT Interview Portfolio Optimizer using Gurobi
+Optimization Engine: Airbnb Listing Strategy Optimizer (Boston)
 
-This module consumes interview-related metrics from the data layer
-and formulates a prescriptive optimization model to maximize
-expected interviews under time and application constraints.
+This module formulates a prescriptive optimization problem where
+Airbnb listings are treated as decision units (analogous to assets).
 
-Requires Gurobi (academic license supported).
+Objective:
+    Minimize revenue risk for a given expected revenue target.
+
+This mirrors classical portfolio optimization and is solved using
+scipy.optimize (cloud-deployable, no license required).
 """
 
 import numpy as np
-import pandas as pd
+from scipy.optimize import minimize
 from typing import Tuple, Dict
 
-try:
-    import gurobipy as gp
-    from gurobipy import GRB
-    GUROBI_AVAILABLE = True
-except ImportError:
-    GUROBI_AVAILABLE = False
 
-# --- Data layer imports (analogous to expected_returns in stock optimizer) ---
-from data.job_data_layer import (
-    fetch_job_data,
-    compute_base_interview_probability,
-    compute_expected_interview_value
-)
-
-
-def optimize_opt_interview_plan(
-    query: str = "data analyst",
-    location: str = "United States",
-    weekly_hours: float = 12.0,
-    max_applications: int = 8,
-    time_per_application: float = 1.0
-) -> Tuple[pd.DataFrame, Dict]:
+def optimize_portfolio(
+    expected_returns: np.ndarray,
+    cov_matrix: np.ndarray,
+    target_return: float,
+    min_weight: float = 0.0,
+    max_weight: float = 1.0
+) -> Tuple[np.ndarray, Dict]:
     """
-    Optimize OPT job application strategy using Gurobi.
+    Optimize Airbnb listing allocation.
+
+    Decision Variables:
+        w_i = allocation weight for listing i
 
     Objective:
-        Maximize expected interviews.
+        Minimize portfolio variance (revenue risk)
 
     Constraints:
-        - Weekly time budget
-        - Maximum number of applications
+        - Sum of weights = 1
+        - Expected revenue >= target_return
+        - min_weight <= w_i <= max_weight
 
     Args:
-        query: Job search keyword
-        location: Job location
-        weekly_hours: Weekly time available for applications
-        max_applications: Maximum number of applications allowed
-        time_per_application: Time cost per application (hours)
+        expected_returns: Expected annual revenue per listing
+        cov_matrix: Revenue covariance matrix
+        target_return: Minimum expected revenue threshold
+        min_weight: Minimum allocation weight per listing
+        max_weight: Maximum allocation weight per listing
 
     Returns:
-        (result_df, summary_dict)
+        (optimal_weights, result_dict)
     """
 
-    if not GUROBI_AVAILABLE:
-        raise ImportError("Gurobi is not installed. Install with: pip install gurobipy")
+    n = len(expected_returns)
 
-    # ======================================================
-    # DATA LAYER (mirrors expected_returns computation)
-    # ======================================================
-    jobs_df = fetch_job_data(
-        query=query,
-        location=location,
-        results=50
-    )
+    # Objective: minimize revenue variance
+    def portfolio_variance(weights):
+        return weights @ cov_matrix @ weights
 
-    base_prob = compute_base_interview_probability(jobs_df)
-
-    expected_value = compute_expected_interview_value(
-        base_prob,
-        jobs_df["salary_k"].values
-    )
-
-    n_jobs = len(jobs_df)
-
-    # ======================================================
-    # OPTIMIZATION MODEL
-    # ======================================================
-    model = gp.Model("OPT_Interview_Optimizer")
-    model.setParam("OutputFlag", 0)
-
-    # Decision variable: apply to job i or not
-    apply = model.addVars(n_jobs, vtype=GRB.BINARY, name="apply")
-
-    # Constraint 1: Maximum number of applications
-    model.addConstr(
-        gp.quicksum(apply[i] for i in range(n_jobs)) <= max_applications,
-        name="max_applications"
-    )
-
-    # Constraint 2: Weekly time budget
-    model.addConstr(
-        gp.quicksum(time_per_application * apply[i] for i in range(n_jobs)) <= weekly_hours,
-        name="weekly_time_budget"
-    )
-
-    # Objective: maximize expected interviews
-    model.setObjective(
-        gp.quicksum(expected_value[i] * apply[i] for i in range(n_jobs)),
-        GRB.MAXIMIZE
-    )
-
-    # Solve
-    model.optimize()
-
-    # ======================================================
-    # RESULTS
-    # ======================================================
-    selected = []
-    total_expected_interviews = 0.0
-    total_time_used = 0.0
-
-    if model.status == GRB.OPTIMAL:
-        for i in range(n_jobs):
-            if apply[i].X > 0.5:
-                selected.append({
-                    "company": jobs_df.iloc[i]["company"],
-                    "role": jobs_df.iloc[i]["role"],
-                    "location": jobs_df.iloc[i]["location"],
-                    "salary_k": jobs_df.iloc[i]["salary_k"],
-                    "base_interview_prob": round(base_prob[i], 3),
-                    "expected_interview_value": round(expected_value[i], 3),
-                })
-
-                total_expected_interviews += base_prob[i]
-                total_time_used += time_per_application
-
-    result_df = pd.DataFrame(selected).sort_values(
-        by="expected_interview_value",
-        ascending=False
-    )
-
-    summary = {
-        "jobs_considered": n_jobs,
-        "jobs_selected": len(result_df),
-        "weekly_hours_budget": weekly_hours,
-        "time_used_hours": round(total_time_used, 2),
-        "expected_interviews": round(total_expected_interviews, 3),
+    # Constraint: fully allocated management capacity
+    constraint_sum = {
+        "type": "eq",
+        "fun": lambda w: np.sum(w) - 1.0
     }
 
-    return result_df, summary
+    # Constraint: minimum expected revenue
+    constraint_return = {
+        "type": "ineq",
+        "fun": lambda w: w @ expected_returns - target_return
+    }
+
+    constraints = [constraint_sum, constraint_return]
+
+    # Bounds: operational limits per listing
+    bounds = [(min_weight, max_weight) for _ in range(n)]
+
+    # Initial guess: equal allocation
+    x0 = np.ones(n) / n
+
+    result = minimize(
+        portfolio_variance,
+        x0,
+        method="SLSQP",
+        bounds=bounds,
+        constraints=constraints,
+        options={"maxiter": 1000}
+    )
+
+    if result.success:
+        portfolio_return = result.x @ expected_returns
+        portfolio_risk = np.sqrt(result.x @ cov_matrix @ result.x)
+    else:
+        portfolio_return = None
+        portfolio_risk = None
+
+    result_dict = {
+        "success": result.success,
+        "message": result.message,
+        "portfolio_return": portfolio_return,
+        "portfolio_risk": portfolio_risk,
+        "objective_value": result.fun
+    }
+
+    return result.x, result_dict
+
+
+def generate_efficient_frontier(
+    expected_returns: np.ndarray,
+    cov_matrix: np.ndarray,
+    n_points: int = 30,
+    min_weight: float = 0.0,
+    max_weight: float = 1.0
+) -> list:
+    """
+    Generate the Revenue–Risk Efficient Frontier for Airbnb listings.
+    """
+
+    min_ret = expected_returns.min()
+    max_ret = expected_returns.max()
+
+    target_returns = np.linspace(min_ret, max_ret, n_points)
+
+    frontier = []
+
+    for tr in target_returns:
+        weights, result = optimize_portfolio(
+            expected_returns,
+            cov_matrix,
+            tr,
+            min_weight,
+            max_weight
+        )
+
+        if result["success"]:
+            frontier.append({
+                "return": result["portfolio_return"],
+                "risk": result["portfolio_risk"],
+                "weights": weights
+            })
+
+    return frontier
+
+
+def find_minimum_variance_portfolio(
+    expected_returns: np.ndarray,
+    cov_matrix: np.ndarray,
+    min_weight: float = 0.0,
+    max_weight: float = 1.0
+) -> Tuple[np.ndarray, Dict]:
+    """
+    Find the global minimum-risk Airbnb listing allocation
+    (no revenue constraint).
+    """
+
+    n = len(expected_returns)
+
+    def portfolio_variance(weights):
+        return weights @ cov_matrix @ weights
+
+    constraint_sum = {
+        "type": "eq",
+        "fun": lambda w: np.sum(w) - 1.0
+    }
+
+    bounds = [(min_weight, max_weight) for _ in range(n)]
+    x0 = np.ones(n) / n
+
+    result = minimize(
+        portfolio_variance,
+        x0,
+        method="SLSQP",
+        bounds=bounds,
+        constraints=[constraint_sum],
+        options={"maxiter": 1000}
+    )
+
+    if result.success:
+        portfolio_return = result.x @ expected_returns
+        portfolio_risk = np.sqrt(result.x @ cov_matrix @ result.x)
+    else:
+        portfolio_return = None
+        portfolio_risk = None
+
+    result_dict = {
+        "success": result.success,
+        "message": result.message,
+        "portfolio_return": portfolio_return,
+        "portfolio_risk": portfolio_risk,
+        "objective_value": result.fun
+    }
+
+    return result.x, result_dict
