@@ -40,7 +40,7 @@ in order to **maximize expected revenue** while respecting real-world operationa
 ## 🚀 Live Demo
 
 👉 **Try the app here:**  
-[PASTE_YOUR_STREAMLIT_URL_HERE](https://airbnb-boston-listing-optimizer-kprejpxwjbnanrn3qzj3az.streamlit.app/)
+(https://airbnb-boston-listing-optimizer-kprejpxwjbnanrn3qzj3az.streamlit.app/)
 
 *(Deployed on Streamlit Cloud)*
 
