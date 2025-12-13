@@ -1,106 +1,132 @@
-# OPT-Interview-Maximizer
-A Gurobi-based prescriptive analytics tool that optimizes OPT job application strategy to maximize interview likelihood under time constraints.
+# 🏡 Airbnb Listing Strategy Optimizer (Boston)
+
+A prescriptive analytics application that applies portfolio optimization techniques to help Airbnb hosts and property managers in **Boston** decide which listings to prioritize in order to maximize expected revenue while managing demand risk under operational constraints.
+
+---
 
 ## 🎯 The Problem
 
-OPT students face a uniquely constrained job search environment. In addition to competitive hiring markets, they operate under strict time limits, visa-related uncertainty, and limited weekly capacity to apply, customize resumes, and conduct outreach.
+Airbnb hosts and small property managers operate under **limited capacity** — constrained by time, cleaning logistics, and management bandwidth. In competitive cities like Boston, not all listings perform equally, and demand varies significantly across neighborhoods, room types, and pricing levels.
 
-Most job seekers rely on intuition when deciding where to apply and how much effort to invest in each opportunity. This often leads to inefficient strategies — over-applying with low effort, under-investing in high-potential roles, or exhausting time on companies that are not OPT-friendly.
+Most hosts rely on intuition when deciding:
+- which listings to actively prioritize,
+- how many listings to manage at once,
+- and where to focus pricing and operational effort.
 
-Despite the importance of these tradeoffs, job application strategy is rarely treated as a structured decision problem. This project addresses that gap by framing the OPT job search as a **portfolio optimization problem**, where limited time must be allocated across competing opportunities to maximize expected interviews.
+This often leads to inefficient strategies such as spreading effort too thin, prioritizing low-demand listings, or under-investing in high-revenue opportunities.
+
+Despite these tradeoffs, listing prioritization is rarely treated as a structured decision problem. This project addresses that gap by framing Airbnb listing strategy as a **portfolio optimization problem**, where limited management capacity must be optimally allocated across competing listings.
+
+---
 
 ## 💡 The Solution
 
-The OPT Interview Maximizer reframes job searching as a **prescriptive optimization problem** inspired by classical portfolio construction.
+The **Airbnb Listing Strategy Optimizer** reframes hosting decisions as a **prescriptive optimization problem**, inspired by classical portfolio construction.
 
-Each job posting is treated as an asset with:
-- an estimated probability of securing an interview,
-- an expected value proxy (role fit and salary),
-- and a time cost required to apply and perform follow-up actions.
+Each Airbnb listing is treated as a decision unit with:
+- an estimated **expected annual revenue**,
+- a **demand uncertainty proxy** (risk),
+- and an implicit operational cost represented through allocation constraints.
 
-Using a mixed-integer optimization model built in **Gurobi**, the system selects:
-- which jobs to apply to,
-- which applications deserve extra effort (resume tailoring, referrals, follow-ups),
-- and how to allocate weekly time across these actions,
+Using a constrained optimization framework, the model determines:
+- which listings should be prioritized,
+- how much relative focus to allocate to each listing,
+- and how to balance revenue potential against demand risk,
 
-in order to **maximize expected interviews** while respecting real-world constraints such as time availability, application limits, and OPT-friendly employer requirements.
+in order to **maximize expected revenue** while respecting real-world operational limits such as the maximum number of active listings a host can manage.
 
+---
 
 ## 🚀 Live Demo
 
-**[Try it here →](YOUR_STREAMLIT_URL)**
+**[Try the app here →](YOUR_STREAMLIT_URL)**  
+*(Deployed on Streamlit Cloud)*
 
-![Screenshot of the OPT Interview Maximizer app](screenshot.png)
+---
 
 ## ⚙️ How It Works
 
-1. **User defines constraints**  
-   The user specifies weekly hours available, maximum applications, and OPT-friendly requirements.
+1. **Load Airbnb market data**  
+   The application loads a curated Boston Airbnb listings dataset (CSV) containing pricing, availability, and listing attributes.
 
-2. **System evaluates job opportunities**  
-   Each job is scored using estimated interview probability, match quality, salary proxy, and effort cost.
+2. **Feature engineering**  
+   - Expected annual revenue is estimated using nightly price and availability.
+   - Demand risk is approximated using availability-based uncertainty.
+   - A covariance matrix is constructed to represent revenue volatility.
 
 3. **Optimization engine runs**  
-   A Gurobi-based mixed-integer program selects the optimal combination of job applications and effort actions.
+   A constrained optimization model selects the optimal allocation across listings, minimizing risk for a given revenue target while respecting capacity constraints.
 
-4. **Actionable plan is returned**  
-   The user receives a clear weekly application plan, including which jobs to apply to and where to invest additional effort.
+4. **Actionable recommendations are returned**  
+   The user receives:
+   - a ranked list of recommended listings,
+   - portfolio-level revenue and risk metrics,
+   - and visual trade-offs between expected revenue and uncertainty.
 
-### The Analytics Behind It
+---
+
+## 🔍 The Analytics Behind It
 
 - **Data**
-  - Curated job posting dataset (CSV)
-  - Estimated interview probabilities
-  - Effort action costs and probability uplifts
+  - Boston Airbnb listings dataset (CSV)
+  - Pricing, availability, and listing metadata
 
 - **Decision Variables**
-  - Apply or not apply to each job
-  - Whether to tailor, seek referrals, or follow up
+  - Allocation weight for each listing (management focus)
 
 - **Objective Function**
-  - Maximize expected interviews (with optional value and risk adjustments)
+  - Maximize expected annual revenue while minimizing demand risk
 
 - **Constraints**
-  - Weekly time budget
-  - Maximum number of applications
-  - OPT-friendly employer minimum
-  - Logical dependencies between actions
+  - Fully allocated management capacity
+  - Maximum number of active listings
+  - Non-negative allocation weights
+
+- **Optimization Technique**
+  - Quadratic optimization using `scipy.optimize`
+
+---
 
 ## 📊 Example Output
 
-The output includes:
-- a prioritized list of recommended job applications,
-- the specific actions to take for each role,
-- estimated interview probabilities,
-- total time usage vs budget.
+The application produces:
+- a table of **recommended listings** ranked by allocation weight,
+- expected annual revenue and revenue risk metrics,
+- risk contribution analysis by listing,
+- a **Revenue–Risk Efficient Frontier** illustrating optimal trade-offs.
 
-This allows users to understand not just *what* to do, but *why* certain tradeoffs were made.
+This allows hosts and managers to understand not just *which* listings to prioritize, but *why* those trade-offs are optimal given their constraints.
+
+---
 
 ## 🛠️ Technology Stack
 
 - **Frontend:** Streamlit  
-- **Optimization:** Gurobi (Mixed-Integer Programming)  
+- **Optimization:** SciPy (`scipy.optimize`)  
 - **Data Processing:** Pandas, NumPy  
-- **Data:** Curated CSV datasets (jobs and actions)
+- **Visualization:** Plotly  
+- **Data Source:** Static Airbnb CSV dataset (Boston)
+
+---
 
 ## 🎓 About This Project
 
-Built as a final project for **ISOM 839 – Prescriptive Analytics**  
+Built as a final project for  
+**ISOM 839 – Prescriptive Analytics**  
 at **Suffolk University**.
 
 **Author:** Sagarika Patel  
-**LinkedIn:** https://www.linkedin.com/in/sagarikapatel6/  
+**LinkedIn:** https://www.linkedin.com/in/sagarikapatel6/
+
+---
 
 ## 🔮 Future Possibilities
 
 Potential extensions include:
-- learning interview probabilities from historical outcomes,
-- multi-week planning horizons,
-- dynamic updates as deadlines approach,
-- integration with job boards or LinkedIn APIs,
-- personalization based on resume versions.
+- neighborhood-level demand forecasting,
+- seasonality-adjusted revenue estimation,
+- multi-period optimization across months,
+- dynamic pricing integration,
+- scenario analysis for regulatory or market changes.
 
-This project demonstrates how prescriptive analytics can guide high-stakes personal decisions under constraints.
-
-
-
+This project demonstrates how **prescriptive analytics** can be applied beyond finance to guide real-world operational decisions in platform-based marketplaces.
