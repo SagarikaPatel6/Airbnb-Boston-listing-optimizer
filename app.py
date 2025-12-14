@@ -44,7 +44,7 @@ st.markdown(
     """
     **Prescriptive Analytics Demo**
 
-    This application demonstrates how portfolio optimization techniques
+    This application demonstrates how portfolio techniques
     can be applied to **Airbnb listing strategy in Boston** — helping hosts
     prioritize listings to maximize expected revenue while managing demand risk
     under limited operational capacity.
