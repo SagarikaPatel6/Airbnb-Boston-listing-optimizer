@@ -120,8 +120,6 @@ at **Suffolk University**.
 **Author:** Sagarika Patel  
 **LinkedIn:** https://www.linkedin.com/in/sagarikapatel6/
 
-** _Loom Video **_
-(https://www.loom.com/share/dd4155834df9466bbd41552e3e07ef58)
 ---
 
 ## 🔮 Future Possibilities
